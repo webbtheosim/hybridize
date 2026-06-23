@@ -364,7 +364,7 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   const hit = svgEl("circle", {
     cx: x,
     cy: y,
-    r: 32,
+    r: 40,
     fill: "transparent",
     stroke: "transparent",
     "pointer-events": "all"
@@ -425,24 +425,32 @@ function bondPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${x1} ${c1y}, ${x2} ${c2y}, ${x2} ${y2}`;
 }
 
-function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted = false) {
-  const stroke = LABELS[clsKey].color;
-  const width = correct ? 4 : 3;
-  const opacity = correct ? 0.9 : 0.55;
-  const glow = stacked ? 1.0 : (correct ? 0.8 : 0.0);
-
-  const path = svgEl("path", {
+  // Invisible mobile-friendly hitbox
+  const hit = svgEl("path", {
     d: bondPath(xA, yA, xB, yB),
     fill: "none",
-    stroke,
-    "stroke-width": isHighlighted ? (width + 10) : width+4,
+    stroke: "transparent",
+    "stroke-width": isHighlighted ? 34 : 24,
     "stroke-linecap": "round",
-    "stroke-opacity": opacity,
     "data-kind": "BOND",
     "data-i": i,
     "data-j": j,
     "pointer-events": "stroke",
     "cursor": isHighlighted ? "pointer" : "default",
+  });
+
+  // Visible bond
+  const path = svgEl("path", {
+    d: bondPath(xA, yA, xB, yB),
+    fill: "none",
+    stroke,
+    "stroke-width": isHighlighted ? (width + 10) : width + 4,
+    "stroke-linecap": "round",
+    "stroke-opacity": opacity,
+    "data-kind": "BOND",
+    "data-i": i,
+    "data-j": j,
+    "pointer-events": "none",
   });
 
   if (glow > 0) {
@@ -566,7 +574,7 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
     const isDone = (status === "DONE");
     const isPending = (status === "PENDING");
 
-    // ✅ Apply visual state classes (this is what enables glow/dim)
+    // Apply visual state classes (this is what enables glow/dim)
     if (isPending) die.classList.add("pending");
     if (isDone) die.classList.add("done");
     if (isPass) die.classList.add("pass");
