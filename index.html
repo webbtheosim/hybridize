@@ -25,7 +25,7 @@
 <section id="screen-home" class="screen active">
   <div class="hero">
     <h1 class="title">Hybridize!</h1>
-    <p class="subtitle">Build the perfect duplex. Fix errors. Survive frustration.</p>
+    <p class="subtitle">Match • Stack • Correct</p>
 
     <div class="card">
       <h2>Choose a mode</h2>
@@ -36,11 +36,83 @@
           <div class="modeDesc">Minimize final energy across a set.</div>
         </button>
 
-        <button class="modebtn" id="modeH2HBtn" type="button">
-          <div class="modeTitle">Head-to-Head</div>
-          <div class="modeDesc">Play simultaneously. Lowest final energy wins.</div>
+        <button class="modebtn disabled" id="modeH2HBtn" type="button" disabled aria-disabled="true">
+          <div class="modeTitle">Head-to-Head <span class="soonTag">Coming soon</span></div>
+          <div class="modeDesc">Play side by side in a future version.</div>
         </button>
       </div>
+
+      <section class="settings-panel" aria-labelledby="settingsTitle">
+        <div class="settings-head">
+          <div>
+            <h2 id="settingsTitle">Game Settings</h2>
+            <p>Higher FORM odds make pairing easier, while more UNPAIR chances can help fix mistakes.</p>
+          </div>
+          <span class="settings-note">Applies on the next new game or roll</span>
+        </div>
+
+        <div class="settings-grid">
+          <label class="setting-row color-r" for="ratio-r">
+            <span>Red</span>
+            <select id="ratio-r" data-color="r">
+              <option value="1:5">1:5</option>
+              <option value="2:4" selected>2:4</option>
+              <option value="3:3">3:3</option>
+              <option value="4:2">4:2</option>
+              <option value="5:1">5:1</option>
+            </select>
+          </label>
+
+          <label class="setting-row color-y" for="ratio-y">
+            <span>Yellow</span>
+            <select id="ratio-y" data-color="y">
+              <option value="1:5">1:5</option>
+              <option value="2:4">2:4</option>
+              <option value="3:3">3:3</option>
+              <option value="4:2">4:2</option>
+              <option value="5:1" selected>5:1</option>
+            </select>
+          </label>
+
+          <label class="setting-row color-p" for="ratio-p">
+            <span>Purple</span>
+            <select id="ratio-p" data-color="p">
+              <option value="1:5">1:5</option>
+              <option value="2:4">2:4</option>
+              <option value="3:3" selected>3:3</option>
+              <option value="4:2">4:2</option>
+              <option value="5:1">5:1</option>
+            </select>
+          </label>
+
+          <label class="setting-row color-b" for="ratio-b">
+            <span>Blue</span>
+            <select id="ratio-b" data-color="b">
+              <option value="1:5">1:5</option>
+              <option value="2:4">2:4</option>
+              <option value="3:3">3:3</option>
+              <option value="4:2" selected>4:2</option>
+              <option value="5:1">5:1</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="frustration-controls">
+          <label class="toggle-row" for="frustrationToggle">
+            <input id="frustrationToggle" type="checkbox" checked />
+            <span>Frustration events</span>
+          </label>
+
+          <label class="threshold-row" for="frustrationThreshold">
+            <span>Trigger</span>
+            <select id="frustrationThreshold">
+              <option value="2" selected>Doubles</option>
+              <option value="3">3 of a kind</option>
+              <option value="4">4 of a kind</option>
+            </select>
+          </label>
+        </div>
+      </section>
 
       <div class="howto">
         <div class="howtoItem">
@@ -257,6 +329,7 @@ Build a perfectly aligned, fully paired duplex with the lowest possible final en
     <div class="topbar-left">
       <div class="stat"><span class="label">Round</span> <span id="roundNum">0</span></div>
       <div class="stat"><span class="label">Energy</span> <span id="energyVal">0</span></div>
+      <div class="stat"><span class="label">Time</span> <span id="timerVal">0:00</span></div>
     </div>
 
     <div class="energybar">

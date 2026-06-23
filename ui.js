@@ -40,7 +40,9 @@ function bindNavigation() {
   });
 
   modeSingleBtn?.addEventListener("click", () => setMode("single"));
-  modeH2HBtn?.addEventListener("click", () => setMode("h2h"));
+  modeH2HBtn?.addEventListener("click", () => {
+    if (!modeH2HBtn.disabled) setMode("h2h");
+  });
   setMode("single");
 
   document.querySelector('[data-screen="play"]')?.addEventListener("click", () => {
@@ -59,6 +61,74 @@ function bindNavigation() {
 }
 // ------------------------------------------------------------
 
+function probabilityRatioToFormFaces(ratio) {
+  const formCount = Number(String(ratio).split(":")[0]);
+  const safeCount = Number.isInteger(formCount) && formCount >= 1 && formCount <= 5
+    ? formCount
+    : 3;
+  return new Set(Array.from({ length: safeCount }, (_v, i) => i + 1));
+}
+
+function buildFormFacesFromSettings() {
+  const next = {};
+  for (const c of COLORS) {
+    const select = document.querySelector(`[data-color="${c}"]`);
+    const ratio = RATIO_OPTIONS.includes(select?.value) ? select.value : DEFAULT_RATIOS[c];
+    next[c] = probabilityRatioToFormFaces(ratio);
+  }
+  return next;
+}
+
+function applySettingsToParams() {
+  formFaces = buildFormFacesFromSettings();
+  params.formFaces = formFaces;
+
+  const frustrationToggle = document.getElementById("frustrationToggle");
+  const frustrationThreshold = document.getElementById("frustrationThreshold");
+  const threshold = Number(frustrationThreshold?.value);
+
+  params.frustrationEnabled = frustrationToggle?.checked ?? true;
+  params.frustrationJ = Number.isInteger(threshold) && threshold >= 2 && threshold <= COLORS.length
+    ? threshold
+    : 2;
+}
+
+function formatElapsed(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function renderTimer() {
+  timerValEl.textContent = formatElapsed(elapsedMs);
+}
+
+function resetTimer() {
+  stopTimer();
+  elapsedMs = 0;
+  timerStartedAt = null;
+  renderTimer();
+}
+
+function startTimerIfNeeded() {
+  if (timerId || state === UIState.WON) return;
+  timerStartedAt = Date.now() - elapsedMs;
+  timerId = window.setInterval(() => {
+    elapsedMs = Date.now() - timerStartedAt;
+    renderTimer();
+  }, 250);
+  renderTimer();
+}
+
+function stopTimer() {
+  if (!timerId) return;
+  window.clearInterval(timerId);
+  timerId = null;
+  if (timerStartedAt !== null) elapsedMs = Date.now() - timerStartedAt;
+  renderTimer();
+}
+
 
 // ---------- DOM refs for Play screen ----------
 const svg = document.getElementById("svg");
@@ -68,6 +138,7 @@ const nextRoundBtn = document.getElementById("nextRoundBtn");
 const resetBtn = document.getElementById("resetBtn");
 const roundNumEl = document.getElementById("roundNum");
 const energyValEl = document.getElementById("energyVal");
+const timerValEl = document.getElementById("timerVal");
 const energyFill = document.getElementById("energybar-fill");
 const frustrationBannerEl = document.getElementById("frustrationBanner");
 
@@ -84,8 +155,17 @@ const LABELS = {
 // Uppercase are complements
 const complement = { r: "R", R: "r", y: "Y", Y: "y", p: "P", P: "p", b: "B", B: "b" };
 
-// Dice rules (example; adjust)
-const formFaces = {
+const DEFAULT_RATIOS = {
+  r: "2:4",
+  y: "5:1",
+  p: "3:3",
+  b: "4:2",
+};
+
+const RATIO_OPTIONS = ["1:5", "2:4", "3:3", "4:2", "5:1"];
+
+// Dice rules
+let formFaces = {
   r: new Set([1, 2]),           // red: 1-2 form
   y: new Set([1, 2, 3, 4, 5]),  // yellow: 1-5 form
   p: new Set([1, 2, 3]),        // purple: 1-3 form
@@ -149,6 +229,11 @@ let frustrationBannerShown = false;
 // Global game stuff
 let selectedMode = "single";
 let navBound = false;
+
+// Timer state
+let timerStartedAt = null;
+let elapsedMs = 0;
+let timerId = null;
 
 function showFrustrationBanner() {
   
@@ -524,6 +609,8 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
 function beginRound() {
   if (state === UIState.WON) return;
 
+  applySettingsToParams();
+  startTimerIfNeeded();
   promptEl.classList.remove("win");
   clearPickState();
   clearFrustrationSelection();
@@ -625,9 +712,7 @@ function chooseOnBoard() {
     updateTopBar();
     render();
     if (engine.isPerfect()) {
-      state = UIState.WON;
-      promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds!`;
-      nextRoundBtn.disabled = true;
+      maybeWinNow();
     } else {
       state = UIState.IDLE;
       promptEl.textContent = "Round complete. Press “Next Roll!” to roll again.";
@@ -662,8 +747,9 @@ function refreshDieStatus() {
 function maybeWinNow() {
   if (!engine.isPerfect()) return false;
 
+  stopTimer();
   state = UIState.WON;
-  promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds!`;
+  promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds and ${formatElapsed(elapsedMs)}!`;
   nextRoundBtn.disabled = true;
   promptEl.classList.add("win");
 
@@ -978,6 +1064,7 @@ svg.addEventListener("click", (ev) => {
 });
 
 function hardResetUIState() {
+  resetTimer();
   state = UIState.IDLE;
   roundPlan = null;
   agg = null;
@@ -997,6 +1084,8 @@ function hardResetUIState() {
 function startNewGameForMode(mode = "single") {
   // For now, modes share the same core game.
   // Later: mode can alter params, create CPU opponent, etc.
+  selectedMode = mode;
+  applySettingsToParams();
   engine.reset(params);
 
   hardResetUIState();
