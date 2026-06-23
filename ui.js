@@ -715,7 +715,7 @@ function chooseOnBoard() {
       maybeWinNow();
     } else {
       state = UIState.IDLE;
-      promptEl.textContent = "Round complete. Press “Next Roll!” to roll again.";
+      promptEl.textContent = "Round complete. Press “Next Roll!”/Space Bar/Enter to roll again.";
       nextRoundBtn.disabled = false;
     }
     return;
