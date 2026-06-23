@@ -267,6 +267,22 @@ body{
   border-left:4px solid rgba(255,255,255,0.25);
 }
 
+.ratio-control{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:3px;
+}
+
+.ratio-label{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:0;
+  line-height:1;
+  white-space:nowrap;
+}
+
 .setting-row.color-r{ border-left-color:var(--red); }
 .setting-row.color-y{ border-left-color:var(--yellow); }
 .setting-row.color-p{ border-left-color:var(--purple); }

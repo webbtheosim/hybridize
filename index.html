@@ -48,7 +48,7 @@
         <div class="settings-head">
           <div>
             <h2 id="settingsTitle">Game Settings</h2>
-            <p>Higher FORM odds make pairing easier, while more UNPAIR chances can help fix mistakes.</p>
+            <p><strong>FORM:UNPAIR</strong> shows the six die faces assigned to each action. For example, 2:4 means FORM on 2 faces and UNPAIR on 4.</p>
           </div>
           <span class="settings-note">Next&nbsp;game/roll</span>
         </div>
@@ -56,46 +56,58 @@
         <div class="settings-grid">
           <label class="setting-row color-r" for="ratio-r">
             <span>Red</span>
-            <select id="ratio-r" data-color="r">
-              <option value="1:5">1:5</option>
-              <option value="2:4" selected>2:4</option>
-              <option value="3:3">3:3</option>
-              <option value="4:2">4:2</option>
-              <option value="5:1">5:1</option>
-            </select>
+            <span class="ratio-control">
+              <span class="ratio-label">FORM:UNPAIR</span>
+              <select id="ratio-r" data-color="r" title="Red FORM to UNPAIR probability">
+                <option value="1:5">1:5</option>
+                <option value="2:4" selected>2:4</option>
+                <option value="3:3">3:3</option>
+                <option value="4:2">4:2</option>
+                <option value="5:1">5:1</option>
+              </select>
+            </span>
           </label>
 
           <label class="setting-row color-y" for="ratio-y">
             <span>Yellow</span>
-            <select id="ratio-y" data-color="y">
-              <option value="1:5">1:5</option>
-              <option value="2:4">2:4</option>
-              <option value="3:3">3:3</option>
-              <option value="4:2">4:2</option>
-              <option value="5:1" selected>5:1</option>
-            </select>
+            <span class="ratio-control">
+              <span class="ratio-label">FORM:UNPAIR</span>
+              <select id="ratio-y" data-color="y" title="Yellow FORM to UNPAIR probability">
+                <option value="1:5">1:5</option>
+                <option value="2:4">2:4</option>
+                <option value="3:3">3:3</option>
+                <option value="4:2">4:2</option>
+                <option value="5:1" selected>5:1</option>
+              </select>
+            </span>
           </label>
 
           <label class="setting-row color-p" for="ratio-p">
             <span>Purple</span>
-            <select id="ratio-p" data-color="p">
-              <option value="1:5">1:5</option>
-              <option value="2:4">2:4</option>
-              <option value="3:3" selected>3:3</option>
-              <option value="4:2">4:2</option>
-              <option value="5:1">5:1</option>
-            </select>
+            <span class="ratio-control">
+              <span class="ratio-label">FORM:UNPAIR</span>
+              <select id="ratio-p" data-color="p" title="Purple FORM to UNPAIR probability">
+                <option value="1:5">1:5</option>
+                <option value="2:4">2:4</option>
+                <option value="3:3" selected>3:3</option>
+                <option value="4:2">4:2</option>
+                <option value="5:1">5:1</option>
+              </select>
+            </span>
           </label>
 
           <label class="setting-row color-b" for="ratio-b">
             <span>Blue</span>
-            <select id="ratio-b" data-color="b">
-              <option value="1:5">1:5</option>
-              <option value="2:4">2:4</option>
-              <option value="3:3">3:3</option>
-              <option value="4:2" selected>4:2</option>
-              <option value="5:1">5:1</option>
-            </select>
+            <span class="ratio-control">
+              <span class="ratio-label">FORM:UNPAIR</span>
+              <select id="ratio-b" data-color="b" title="Blue FORM to UNPAIR probability">
+                <option value="1:5">1:5</option>
+                <option value="2:4">2:4</option>
+                <option value="3:3">3:3</option>
+                <option value="4:2" selected>4:2</option>
+                <option value="5:1">5:1</option>
+              </select>
+            </span>
           </label>
         </div>
 

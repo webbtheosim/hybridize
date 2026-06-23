@@ -358,16 +358,18 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   const strokeWidth = isBlocked ? 3.2 : (isHighlighted ? 2.8 : (isUpper ? 2.6 : 2.2));
 
   const group = svgEl("g", { "data-kind": isTop ? "A" : "B", "data-idx": idx });
-  if (isHighlighted || isBlocked) group.style.cursor = "pointer";
+  if (isHighlighted) group.style.cursor = "pointer";
 
-  // Invisible hit target (bigger click zone)
+  // Mobile-friendly hit target. Only legal highlighted bases receive clicks.
   const hit = svgEl("circle", {
     cx: x,
     cy: y,
-    r: 40,
+    r: 36,
     fill: "transparent",
     stroke: "transparent",
-    "pointer-events": "all"
+    "data-kind": isTop ? "A" : "B",
+    "data-idx": idx,
+    "pointer-events": isHighlighted ? "all" : "none"
   });
   group.appendChild(hit);
 
@@ -382,18 +384,18 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   let shape;
   // Pick the geometry by class (not by strand)
   if (clsKey === "r") { // circle
-    shape = svgEl("circle", { cx:x, cy:y, r:16, fill, stroke, "stroke-width":strokeWidth });
+    shape = svgEl("circle", { cx:x, cy:y, r:16, fill, stroke, "stroke-width":strokeWidth, "pointer-events":"none" });
   } else if (clsKey === "b") { // square
-    shape = svgEl("rect", { x:x-16, y:y-16, width:32, height:32, rx:6, fill, stroke, "stroke-width":strokeWidth });
+    shape = svgEl("rect", { x:x-16, y:y-16, width:32, height:32, rx:6, fill, stroke, "stroke-width":strokeWidth, "pointer-events":"none" });
   } else if (clsKey === "p") { // diamond
     shape = svgEl("polygon", {
       points: `${x},${y-18} ${x+18},${y} ${x},${y+18} ${x-18},${y}`,
-      fill, stroke, "stroke-width": strokeWidth
+      fill, stroke, "stroke-width": strokeWidth, "pointer-events": "none"
     });
   } else if (clsKey === "y") {
     shape = svgEl("polygon", {
       points: `${x},${y-18} ${x+18},${y+18} ${x-18},${y+18}`,
-      fill, stroke, "stroke-width": strokeWidth
+      fill, stroke, "stroke-width": strokeWidth, "pointer-events": "none"
     });
   }
 
@@ -425,17 +427,23 @@ function bondPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${x1} ${c1y}, ${x2} ${c2y}, ${x2} ${y2}`;
 }
 
+function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted = false) {
+  const stroke = LABELS[clsKey].color;
+  const width = correct ? 4 : 3;
+  const opacity = correct ? 0.9 : 0.55;
+  const glow = stacked ? 1.0 : (correct ? 0.8 : 0.0);
+
   // Invisible mobile-friendly hitbox
   const hit = svgEl("path", {
     d: bondPath(xA, yA, xB, yB),
     fill: "none",
     stroke: "transparent",
-    "stroke-width": isHighlighted ? 34 : 24,
+    "stroke-width": 28,
     "stroke-linecap": "round",
     "data-kind": "BOND",
     "data-i": i,
     "data-j": j,
-    "pointer-events": "stroke",
+    "pointer-events": isHighlighted ? "stroke" : "none",
     "cursor": isHighlighted ? "pointer" : "default",
   });
 
@@ -468,6 +476,7 @@ function bondPath(x1, y1, x2, y2) {
   }
 
   svg.appendChild(path);
+  svg.appendChild(hit);
 }
 
 function render(highlight = {}) {
@@ -868,7 +877,7 @@ function handleFormFirstPick(kind, idx) {
 
 // ----- click handling -----
 svg.addEventListener("click", (ev) => {
-  const target = ev.target.closest("g, path");
+  const target = ev.target.closest?.("[data-kind]");
   if (!target) return;
 
   const kind = target.getAttribute("data-kind");
