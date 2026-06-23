@@ -364,7 +364,7 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   const hit = svgEl("circle", {
     cx: x,
     cy: y,
-    r: 36,
+    r: 40,
     fill: "transparent",
     stroke: "transparent",
     "data-kind": isTop ? "A" : "B",
@@ -438,7 +438,7 @@ function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted 
     d: bondPath(xA, yA, xB, yB),
     fill: "none",
     stroke: "transparent",
-    "stroke-width": 28,
+    "stroke-width": 40,
     "stroke-linecap": "round",
     "data-kind": "BOND",
     "data-i": i,
