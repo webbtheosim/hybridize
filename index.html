@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hybridization Game (MVP)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <!-- GLOBAL NAV HEADER -->
+  <header class="topbar appbar">
+    <div class="appbar-left">
+      <div class="brand" id="brandBtn">Hybridize!</div>
+    </div>
+
+    <nav class="nav">
+      <button class="navbtn" data-screen="home">Home</button>
+      <button class="navbtn" data-screen="rules">Rules</button>
+      <button class="navbtn" data-screen="play">Play</button>
+    </nav>
+  </header>
+
+  <!-- HOME / TITLE SCREEN -->
+<section id="screen-home" class="screen active">
+  <div class="hero">
+    <h1 class="title">Hybridize!</h1>
+    <p class="subtitle">Build the perfect duplex. Fix errors. Survive frustration.</p>
+
+    <div class="card">
+      <h2>Choose a mode</h2>
+
+      <div class="mode-grid">
+        <button class="modebtn selected" id="modeSingleBtn" type="button">
+          <div class="modeTitle">Single Player</div>
+          <div class="modeDesc">Minimize final energy across a set.</div>
+        </button>
+
+        <button class="modebtn" id="modeH2HBtn" type="button">
+          <div class="modeTitle">Head-to-Head</div>
+          <div class="modeDesc">Play simultaneously. Lowest final energy wins.</div>
+        </button>
+      </div>
+
+      <div class="howto">
+        <div class="howtoItem">
+          <div class="howtoNum">1</div>
+          <div>
+            <div class="howtoTitle">Roll</div>
+            <div class="howtoDesc">Press <strong>Next Roll!</strong> to get actions for each color.</div>
+          </div>
+        </div>
+
+        <div class="howtoItem">
+          <div class="howtoNum">2</div>
+          <div>
+            <div class="howtoTitle">Fix</div>
+            <div class="howtoDesc">
+              Click glowing bases to <strong>form</strong> pairs, or glowing bonds to <strong>unpair</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="howtoItem">
+          <div class="howtoNum">3</div>
+          <div>
+            <div class="howtoTitle">Win</div>
+            <div class="howtoDesc">
+              Finish the perfectly aligned duplex with the <strong>lowest final energy</strong>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="homeActions">
+        <button class="btn primary" id="startBtn" type="button">Start</button>
+        <button class="btn" id="rulesBtn" type="button">View Rules</button>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- RULES SCREEN -->
+<section id="screen-rules" class="screen">
+  <div class="card rules">
+    <h2>Rules</h2>
+
+<p><strong>Objective</strong></p>
+<p>
+Build a perfectly aligned, fully paired duplex with the lowest possible final energy.
+</p>
+
+<hr>
+
+<p><strong>Setup</strong></p>
+<ul>
+  <li>Two complementary strands are generated.</li>
+  <li>Some bases may begin incorrectly paired (misaligned).</li>
+  <li>Crossing bonds are not allowed (unless enabled in advanced mode).</li>
+</ul>
+
+<hr>
+
+<p><strong>Each Round</strong></p>
+<ol>
+  <li>Roll one die for each color (class).</li>
+  <li>Each color either allows you to <strong>Form</strong> or <strong>Unpair</strong>.</li>
+  <li>You may perform the available actions in any order.</li>
+</ol>
+
+<hr>
+
+<p><strong>Form</strong></p>
+<ul>
+  <li>Select two complementary, unpaired bases of that color.</li>
+  <li>Bonds may not cross existing bonds.</li>
+  <li>Correctly aligned bonds are straight.</li>
+  <li>Misaligned bonds are curved and may reduce stability.</li>
+</ul>
+
+<p><strong>Unpair</strong></p>
+<ul>
+  <li>Select an existing bond of that color to break it.</li>
+</ul>
+
+<hr>
+
+<p><strong>Energy Model</strong></p>
+<ul>
+  <li>Each valid bond contributes <strong>−1 energy</strong>.</li>
+  <li>Each adjacent correctly aligned pair adds an additional <strong>−1 stacking bonus</strong>.</li>
+  <li>The perfect duplex has energy: <strong>−(N + N−1)</strong>.</li>
+</ul>
+
+<hr>
+
+<p><strong>Frustration Events</strong></p>
+<ul>
+  <li>If certain dice conditions occur (e.g., doubles), a Frustration Event is triggered.</li>
+  <li>You must add one misaligned bond if possible.</li>
+</ul>
+
+<hr>
+
+<p><strong>Winning</strong></p>
+<ul>
+  <li>A match ends when no more legal moves remain or the duplex is perfect.</li>
+  <li>Final energy determines the winner.</li>
+  <li>In Single Player mode, minimize final energy across the set.</li>
+</ul>
+
+<hr>
+
+<p><strong>Visual Examples</strong></p>
+
+<div class="rulesExamples">
+
+  <!-- Example 1: Correct alignment (straight bond) -->
+  <div class="exCard">
+    <div class="exTitle">Correct alignment (straight bond)</div>
+    <svg class="exSvg" viewBox="0 0 260 120" aria-label="Correct alignment example">
+      <!-- strands -->
+      <line x1="20" y1="30" x2="240" y2="30" class="strand"/>
+      <line x1="20" y1="90" x2="240" y2="90" class="strand"/>
+
+      <!-- bases -->
+      <circle cx="80" cy="30" r="10" class="base r"/>
+      <circle cx="80" cy="90" r="10" class="base R"/>
+      <circle cx="140" cy="30" r="10" class="base y"/>
+      <circle cx="140" cy="90" r="10" class="base Y"/>
+
+      <!-- bonds -->
+      <line x1="80" y1="40" x2="80" y2="80" class="bond ok"/>
+      <line x1="140" y1="40" x2="140" y2="80" class="bond ok"/>
+    </svg>
+    <div class="exNote">Bonds connect matching complements at the same position.</div>
+  </div>
+
+  <!-- Example 2: Misalignment (curved bond) -->
+  <div class="exCard">
+    <div class="exTitle">Misalignment (curved bond)</div>
+    <svg class="exSvg" viewBox="0 0 260 120" aria-label="Misalignment example">
+      <line x1="20" y1="30" x2="240" y2="30" class="strand"/>
+      <line x1="20" y1="90" x2="240" y2="90" class="strand"/>
+
+      <circle cx="80" cy="30" r="10" class="base r"/>
+      <circle cx="140" cy="90" r="10" class="base r"/>
+      <circle cx="140" cy="30" r="10" class="base y"/>
+      <circle cx="200" cy="90" r="10" class="base y"/>
+
+      <!-- correct bond -->
+      <line x1="200" y1="40" x2="200" y2="80" class="bond ok"/>
+
+      <!-- misaligned (curved) bond -->
+      <path d="M 80 40 C 105 58, 115 62, 140 80" class="bond mis"/>
+    </svg>
+    <div class="exNote">Misaligned bonds are forced during Frustration Events.</div>
+  </div>
+
+  <!-- Example 3: Crossing not allowed -->
+  <div class="exCard">
+    <div class="exTitle">Crossing bonds (not allowed)</div>
+    <svg class="exSvg" viewBox="0 0 260 120" aria-label="Crossing not allowed example">
+      <line x1="20" y1="30" x2="240" y2="30" class="strand"/>
+      <line x1="20" y1="90" x2="240" y2="90" class="strand"/>
+
+      <circle cx="80" cy="30" r="10" class="base p"/>
+      <circle cx="200" cy="30" r="10" class="base p"/>
+      <circle cx="80" cy="90" r="10" class="base p"/>
+      <circle cx="200" cy="90" r="10" class="base p"/>
+
+      <line x1="80" y1="40" x2="200" y2="80" class="bond bad"/>
+      <line x1="200" y1="40" x2="80" y2="80" class="bond bad"/>
+
+      <!-- big X marker -->
+      <line x1="120" y1="48" x2="160" y2="72" class="xmark"/>
+      <line x1="160" y1="48" x2="120" y2="72" class="xmark"/>
+    </svg>
+    <div class="exNote">If a new bond would cross an existing bond, it is blocked.</div>
+  </div>
+
+  <!-- Example 4: Stacking bonus -->
+  <div class="exCard">
+    <div class="exTitle">Stacking bonus (neighbor stabilization)</div>
+    <svg class="exSvg" viewBox="0 0 260 120" aria-label="Stacking bonus example">
+      <line x1="20" y1="30" x2="240" y2="30" class="strand"/>
+      <line x1="20" y1="90" x2="240" y2="90" class="strand"/>
+
+      <circle cx="95" cy="30" r="10" class="base b"/>
+      <circle cx="95" cy="90" r="10" class="base b"/>
+      <circle cx="140" cy="30" r="10" class="base b"/>
+      <circle cx="140" cy="90" r="10" class="base b"/>
+
+      <line x1="95" y1="40" x2="95" y2="80" class="bond ok"/>
+      <line x1="140" y1="40" x2="140" y2="80" class="bond ok"/>
+
+      <!-- highlight the stack region -->
+      <rect x="83" y="18" width="69" height="84" rx="14" class="stackGlow"/>
+    </svg>
+    <div class="exNote">Adjacent correctly aligned bonds add extra stability (stacking bonus).</div>
+  </div>
+
+</div>
+
+
+
+    <div class="homeActions">
+      <button class="btn" id="backHomeBtn" type="button">Back</button>
+      <button class="btn primary" id="playFromRulesBtn" type="button">Play</button>
+    </div>
+  </div>
+</section>
+
+<!-- PLAY SCREEN -->
+<section id="screen-play" class="screen">
+  <!-- Your existing in-game topbar -->
+  <header class="topbar gamebar">
+    <div class="topbar-left">
+      <div class="stat"><span class="label">Round</span> <span id="roundNum">0</span></div>
+      <div class="stat"><span class="label">Energy</span> <span id="energyVal">0</span></div>
+    </div>
+
+    <div class="energybar">
+      <div class="energybar-track">
+        <div id="energybar-fill" class="energybar-fill"></div>
+      </div>
+      <div class="energybar-labels">
+        <span>Unpaired</span>
+        <span>Perfect</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button id="resetBtn" class="btn" type="button">Reset</button>
+    </div>
+  </header>
+
+  <!-- Dice + Next Roll -->
+  <section class="dice-row" id="diceRowWrap">
+    <div class="dice-row-left" id="diceRow"></div>
+    <div class="dice-row-right">
+      <button id="nextRoundBtn" class="btn primary" type="button">Next Roll!</button>
+    </div>
+  </section>
+
+  <main class="main">
+    <section class="viz">
+      <svg id="svg" class="viz-svg" viewBox="0 0 1000 520" preserveAspectRatio="none"></svg>
+
+      <!-- NOTE: you currently have an SVG-based banner too; this DIV can stay if you still use it -->
+      <div id="frustrationBanner" class="frustration-banner hidden">
+        ⚡ FRUSTRATION EVENT ⚡
+      </div>
+    </section>
+
+    <section class="action-panel action-panel-bottom">
+      <div id="prompt" class="prompt">Press “Next Roll!” to roll dice.</div>
+
+      <div class="action-buttons" id="choiceButtons" style="display:none;">
+        <button id="chooseFormBtn" class="btn" type="button">Form</button>
+        <button id="chooseUnpairBtn" class="btn" type="button">Unpair</button>
+      </div>
+
+      <!-- Removed duplicate nextRoundBtn block to avoid duplicate IDs -->
+      <div class="footer footer-row">
+        <!-- keep footer area for future (e.g., “Hint”, “Undo”, “Audio”) -->
+      </div>
+    </section>
+  </main>
+</section>
+
+<script src="engine.js"></script>
+<script src="ui.js" defer></script>
+</body>
+
+</html>
