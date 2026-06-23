@@ -35,7 +35,6 @@ function bindNavigation() {
   }
 
   startBtn?.addEventListener("click", () => {
-    console.log("START CLICKED", { selectedMode, startBtn });
     showScreen("play");
     startNewGameForMode(selectedMode);
   });
@@ -70,9 +69,6 @@ const resetBtn = document.getElementById("resetBtn");
 const roundNumEl = document.getElementById("roundNum");
 const energyValEl = document.getElementById("energyVal");
 const energyFill = document.getElementById("energybar-fill");
-const choiceButtons = document.getElementById("choiceButtons");
-const chooseFormBtn = document.getElementById("chooseFormBtn");
-const chooseUnpairBtn = document.getElementById("chooseUnpairBtn");
 const frustrationBannerEl = document.getElementById("frustrationBanner");
 
 
@@ -148,6 +144,7 @@ let partnerBlocked = [];        // complementary-but-blocked (crossing) candidat
 // Frustration tracking
 let frustrationMoves = null;
 let frustrationPending = false;
+let frustrationBannerShown = false;
 
 // Global game stuff
 let selectedMode = "single";
@@ -162,8 +159,6 @@ function showFrustrationBanner() {
 
   // Ensure it can render
   frustrationBannerEl.classList.remove("hidden");
-
-  //console.log("banner classes:", frustrationBannerEl.className);
 
   // Restart animation reliably
   frustrationBannerEl.classList.remove("show");
@@ -245,6 +240,24 @@ function appendHalo(group, x, y, clsKey, haloColor, kind="legal") {
   group.appendChild(halo);
 }
 
+function appendBlockedMarker(group, x, y) {
+  const lineAttrs = {
+    stroke: "rgba(255,255,255,0.95)",
+    "stroke-width": 5,
+    "stroke-linecap": "round",
+    "pointer-events": "none"
+  };
+
+  group.appendChild(svgEl("line", {
+    x1: x - 13, y1: y - 13, x2: x + 13, y2: y + 13,
+    ...lineAttrs
+  }));
+  group.appendChild(svgEl("line", {
+    x1: x + 13, y1: y - 13, x2: x - 13, y2: y + 13,
+    ...lineAttrs
+  }));
+}
+
 function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlocked=false) {
 
   const baseColor = LABELS[clsKey].color;
@@ -260,12 +273,13 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   const strokeWidth = isBlocked ? 3.2 : (isHighlighted ? 2.8 : (isUpper ? 2.6 : 2.2));
 
   const group = svgEl("g", { "data-kind": isTop ? "A" : "B", "data-idx": idx });
+  if (isHighlighted || isBlocked) group.style.cursor = "pointer";
 
   // Invisible hit target (bigger click zone)
   const hit = svgEl("circle", {
     cx: x,
     cy: y,
-    r: 26,                  // adjust to taste
+    r: 32,
     fill: "transparent",
     stroke: "transparent",
     "pointer-events": "all"
@@ -299,6 +313,8 @@ function drawBase(x, y, clsKey, isTop, idx, rawLabel, isHighlighted=false, isBlo
   }
 
   group.appendChild(shape);
+
+  if (isBlocked) appendBlockedMarker(group, x, y);
 
   // index label
 const labelY = isTop ? (y - 26) : (y + 40);
@@ -341,6 +357,7 @@ function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted 
     "data-i": i,
     "data-j": j,
     "pointer-events": "stroke",
+    "cursor": isHighlighted ? "pointer" : "default",
   });
 
   if (glow > 0) {
@@ -449,7 +466,7 @@ function updateTopBar() {
   energyFill.style.width = `${Math.round(frac * 100)}%`;
 }
 
-function renderDice(rolls, outcomes, statusMap = {}) {
+function renderDice(rolls, outcomes, statusMap = {}, active = null) {
   diceRow.innerHTML = "";
 
   for (const c of COLORS) {
@@ -468,15 +485,16 @@ function renderDice(rolls, outcomes, statusMap = {}) {
     if (isPending) die.classList.add("pending");
     if (isDone) die.classList.add("done");
     if (isPass) die.classList.add("pass");
+    if (active === c) die.classList.add("active");
 
     // Tooltip (only if PASS)
     const passReason = isPass
       ? (out === "FORM"
-          ? "PASS: no legal pairs (crossing or no complements)."
-          : "PASS: no bonds of this color to break.")
+          ? "PASS: no legal complementary unpaired pair is available right now."
+          : "PASS: no paired bond of this class is available to break right now.")
       : "";
 
-    const outText = isPass ? "PASS" : out;
+    const outText = isPass ? `PASS ${out}` : out;
     const tagClass = isPass ? "pass" : (out === "FORM" ? "form" : "unpair");
 
     die.innerHTML = `
@@ -496,8 +514,6 @@ function renderDice(rolls, outcomes, statusMap = {}) {
       die.querySelector(".face")?.setAttribute("title", passReason);
       die.querySelector(".label")?.setAttribute("title", passReason);
 
-      // Optional debug
-      // console.log("PASS tooltip:", c, passReason);
     }
 
     diceRow.appendChild(die);
@@ -508,9 +524,9 @@ function renderDice(rolls, outcomes, statusMap = {}) {
 function beginRound() {
   if (state === UIState.WON) return;
 
-  pickedA = null;
-  tempCandidatesB = [];
-  choiceButtons.style.display = "none";
+  promptEl.classList.remove("win");
+  clearPickState();
+  clearFrustrationSelection();
 
   roundPlan = engine.startNextRound();
 
@@ -526,6 +542,8 @@ function beginRound() {
   }
 
   frustrationPending = engine.frustrationTriggers();
+  frustrationMoves = null;
+  frustrationBannerShown = false;
   nextRoundBtn.disabled = true;
   chooseOnBoard();
 }
@@ -590,16 +608,18 @@ function chooseOnBoard() {
       frustrationMoves = engine.legalMisalignmentMoves();
       if (frustrationMoves.length) {
         state = UIState.FRUSTRATION;
+        clearFrustrationSelection();
 
         if (!frustrationBannerShown) {
           showFrustrationBanner();
           frustrationBannerShown = true;
         }
 
-        promptEl.textContent = "⚠ Frustration Event! Form one MISALIGNED bond (curved).";
-        render(highlightFormMoves(frustrationMoves));
+        promptEl.textContent = "Frustration Event: select a glowing Strand A base to force one misaligned bond.";
+        render(highlightFrustrationFirstPicks(frustrationMoves));
         return;
       }
+      frustrationPending = false;
     }
 
     updateTopBar();
@@ -610,7 +630,7 @@ function chooseOnBoard() {
       nextRoundBtn.disabled = true;
     } else {
       state = UIState.IDLE;
-      promptEl.textContent = "Round complete. Press “Next Round” to roll again.";
+      promptEl.textContent = "Round complete. Press “Next Roll!” to roll again.";
       nextRoundBtn.disabled = false;
     }
     return;
@@ -645,10 +665,27 @@ function maybeWinNow() {
   state = UIState.WON;
   promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds!`;
   nextRoundBtn.disabled = true;
+  promptEl.classList.add("win");
 
   // Optional: clear highlights / render clean final state
   render();
   return true;
+}
+
+function clearPickState() {
+  activeClass = null;
+  activeOutcome = null;
+  legalMoves = [];
+  pickedSide = null;
+  pickedIdx = null;
+  partnerSide = null;
+  partnerCandidates = [];
+  partnerBlocked = [];
+}
+
+function clearFrustrationSelection() {
+  pickedA = null;
+  tempCandidatesB = [];
 }
 
 
@@ -664,6 +701,12 @@ function highlightUnpairMoves(moves) {
   return { A: new Set(), B: new Set(), bonds: moves };
 }
 
+function highlightFrustrationFirstPicks(moves) {
+  const Aset = new Set();
+  for (const [i] of moves) Aset.add(i);
+  return { A: Aset, B: new Set(), bonds: [] };
+}
+
 function highlightFirstPicksFromLegalMoves(moves) {
   const Aset = new Set();
   const Bset = new Set();
@@ -673,14 +716,14 @@ function highlightFirstPicksFromLegalMoves(moves) {
 
 function handleFormFirstPick(kind, idx) {
   // kind is "A" or "B" and we are in FORM_PICK_FIRST
-  pickedSide = kind;
-  pickedIdx = idx;
-
-  const possibleLegal = (pickedSide === "A")
+  const possibleLegal = (kind === "A")
     ? legalMoves.filter(([i, _j]) => i === idx)
     : legalMoves.filter(([_i, j]) => j === idx);
 
   if (!possibleLegal.length) return false;
+
+  pickedSide = kind;
+  pickedIdx = idx;
 
   partnerSide = (pickedSide === "A") ? "B" : "A";
   partnerCandidates = (pickedSide === "A")
@@ -729,54 +772,6 @@ function handleFormFirstPick(kind, idx) {
   return true;
 }
 
-// color picker
-function startActionForColor(c) {
-  activeClass = c;
-  activeOutcome = roundPlan.outcomes[activeClass];
-
-  // Make dice update show which one is active
-  renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus, activeClass);
-
-  if (activeOutcome === "FORM") {
-    legalMoves = engine.legalFormMoves(activeClass);
-    if (!legalMoves.length) {
-      promptEl.textContent = `${activeClass.toUpperCase()}: FORM rolled but no legal moves.`;
-
-      if (dieStatus[activeClass] === "PENDING") dieStatus[activeClass] = "DONE";
-      renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus, null);
-
-      render();
-      setTimeout(chooseNextAction, 150);
-      return;
-    }
-
-
-    state = UIState.FORM_PICK_FIRST;
-    promptEl.textContent = `${activeClass.toUpperCase()}: FORM — select a base on Strand A or B.`;
-    render(highlightFirstPicksFromLegalMoves(legalMoves));
-    return;
-  }
-
-  // UNPAIR
-  legalMoves = engine.legalUnpairMoves(activeClass);
-  if (!legalMoves.length) {
-    promptEl.textContent = `${activeClass.toUpperCase()}: UNPAIR rolled but no bonds to break.`;
-
-    if (dieStatus[activeClass] === "PENDING") dieStatus[activeClass] = "DONE";
-    renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus, null);
-
-    render();
-    setTimeout(chooseNextAction, 150);
-    return;
-  }
-
-  state = UIState.UNPAIR_PICK;
-  promptEl.textContent = `${activeClass.toUpperCase()}: UNPAIR — select a bond to break.`;
-  render(highlightUnpairMoves(legalMoves));
-}
-
-
-
 // ----- click handling -----
 svg.addEventListener("click", (ev) => {
   const target = ev.target.closest("g, path");
@@ -805,6 +800,7 @@ svg.addEventListener("click", (ev) => {
       // Choose a color (v1: pick first; later we can prompt if multiple)
       activeClass = candidates[0];
       activeOutcome = "FORM";
+      renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus, activeClass);
 
       // Recompute legal moves *now* (board may have changed)
       legalMoves = engine.legalFormMoves(activeClass);
@@ -821,6 +817,7 @@ svg.addEventListener("click", (ev) => {
       const ok = handleFormFirstPick(kind, idx);
       if (!ok) {
         // If the click isn't a valid first pick anymore, rebuild highlights
+        clearPickState();
         refreshDieStatus();
         setTimeout(chooseOnBoard, 0);
       }
@@ -865,6 +862,7 @@ svg.addEventListener("click", (ev) => {
 
       updateTopBar();
       render();
+      if (maybeWinNow()) return;
 
       setTimeout(chooseOnBoard, 100);
       return;
@@ -875,69 +873,7 @@ svg.addEventListener("click", (ev) => {
 
   if (state === UIState.FORM_PICK_FIRST && (kind === "A" || kind === "B")) {
     const idx = Number(target.getAttribute("data-idx"));
-    pickedSide = kind;
-    pickedIdx = idx;
-
-    // Must be a legal first-pick (i or j appears in legalMoves)
-    const possibleLegal = (pickedSide === "A")
-      ? legalMoves.filter(([i, _j]) => i === idx)
-      : legalMoves.filter(([_i, j]) => j === idx);
-
-    if (!possibleLegal.length) return;
-
-    // Determine partner side and legal partner candidates
-    partnerSide = (pickedSide === "A") ? "B" : "A";
-    partnerCandidates = (pickedSide === "A")
-      ? possibleLegal.map(([_, j]) => j)
-      : possibleLegal.map(([i, _]) => i);
-
-    // Compute complementary-but-blocked partners (i.e., complementary + unpaired, but not legal due to crossing)
-    // We compute "all complementary unpaired" on partnerSide, then subtract legal partnerCandidates.
-    const allComplement = [];
-
-    if (pickedSide === "A") {
-      // Need B[j] == complement[A[idx]]
-      const needed = params.complement[engine.A[pickedIdx]];
-      for (let j = 0; j < params.N; j++) {
-        if (engine.pairedB[j] !== null) continue;
-        if (engine.B[j] !== needed) continue;
-        allComplement.push(j);
-      }
-    } else {
-      // Need A[i] == complement[B[idx]]
-      const needed = params.complement[engine.B[pickedIdx]];
-      for (let i = 0; i < params.N; i++) {
-        if (engine.pairedA[i] !== null) continue;
-        if (engine.A[i] !== needed) continue;
-        allComplement.push(i);
-      }
-    }
-
-    const legalSet = new Set(partnerCandidates);
-    partnerBlocked = allComplement.filter(k => !legalSet.has(k));
-
-    state = UIState.FORM_PICK_SECOND;
-
-    const partnerName = (partnerSide === "A") ? "Strand A" : "Strand B";
-    promptEl.textContent = `${activeClass.toUpperCase()}: FORM — select a partner on ${partnerName}. (Orange = blocked by crossing)`;
-
-    // Build highlight object
-    const hl = { A: new Set(), B: new Set(), bonds: [] };
-
-    // Highlight chosen base
-    if (pickedSide === "A") hl.A.add(pickedIdx);
-    else hl.B.add(pickedIdx);
-
-    // Highlight legal partners and blocked partners on the opposite strand
-    if (partnerSide === "A") {
-      hl.A = new Set([...hl.A, ...partnerCandidates]);
-      hl.Ablocked = new Set(partnerBlocked);
-    } else {
-      hl.B = new Set([...hl.B, ...partnerCandidates]);
-      hl.Bblocked = new Set(partnerBlocked);
-    }
-
-    render(hl);
+    handleFormFirstPick(kind, idx);
     return;
   }
 
@@ -967,12 +903,7 @@ svg.addEventListener("click", (ev) => {
     updateTopBar();
     render();
 
-    // reset pick state
-    pickedSide = null;
-    pickedIdx = null;
-    partnerSide = null;
-    partnerCandidates = [];
-    partnerBlocked = [];
+    clearPickState();
     if (maybeWinNow()) return;
 
     setTimeout(chooseOnBoard, 100);
@@ -994,6 +925,7 @@ svg.addEventListener("click", (ev) => {
 
     updateTopBar();
     render();
+    clearPickState();
     if (maybeWinNow()) return;
 
     setTimeout(chooseOnBoard, 100);
@@ -1028,22 +960,16 @@ svg.addEventListener("click", (ev) => {
       frustrationMoves = null;
       frustrationBannerShown = false;
 
-      pickedA = null;
-      tempCandidatesB = [];
-      pickedSide = null;
-      pickedIdx = null;
-      partnerSide = null;
-      partnerCandidates = [];
-      partnerBlocked = [];
-
-      state = UIState.CHOOSE_ON_BOARD;
-      refreshDieStatus();
+      clearFrustrationSelection();
+      clearPickState();
       updateTopBar();
       render();
       if (maybeWinNow()) return;
 
-
-      setTimeout(chooseOnBoard, 100);
+      state = UIState.IDLE;
+      promptEl.textContent = "Frustration bond formed. Round complete. Press “Next Roll!” to roll again.";
+      nextRoundBtn.disabled = false;
+      renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus);
       return;
     }
 
@@ -1056,23 +982,13 @@ function hardResetUIState() {
   roundPlan = null;
   agg = null;
 
-  activeClass = null;
-  activeOutcome = null;
-  legalMoves = [];
-
-  // selection state
-  pickedA = null;
-  tempCandidatesB = [];
-
-  pickedSide = null;
-  pickedIdx = null;
-  partnerSide = null;
-  partnerCandidates = [];
-  partnerBlocked = [];
+  clearPickState();
+  clearFrustrationSelection();
 
   // frustration
   frustrationPending = false;
   frustrationMoves = null;
+  frustrationBannerShown = false;
 
   // dice state
   dieStatus = {};
@@ -1089,6 +1005,7 @@ function startNewGameForMode(mode = "single") {
   updateTopBar();
   render();
 
+  promptEl.classList.remove("win");
   promptEl.textContent = "Press “Next Roll!” to roll dice.";
   nextRoundBtn.disabled = false;
 }
@@ -1098,11 +1015,9 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     // 1) Wire navigation first (Home/Rules/Play buttons + Start/Mode)
     bindNavigation();
-    console.log("Navigation bound successfully");
 
     // 2) Now initialize the game (so Play is ready when you navigate there)
     startNewGameForMode("single");
-    console.log("Game initialized");
 
     // 3) Bind Play-screen controls
     resetBtn.addEventListener("click", () => {
@@ -1128,5 +1043,3 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Boot failed:", e);
   }
 });
-
-

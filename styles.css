@@ -150,27 +150,18 @@ body{
 }
 /* Dice glow states */
 .die.pending{
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.14), 0 0 22px rgba(102,163,255,0.30);
-  border-color: rgba(255,255,255,0.18);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18), 0 0 24px rgba(102,163,255,0.38);
+  border-color: rgba(102,163,255,0.38);
 }
 
 .die.done{
-  opacity: 0.78;
+  opacity: 0.72;
+  box-shadow: inset 0 0 0 1px rgba(104,211,145,0.22);
 }
 
 .die.pass{
   opacity: 0.6;
   filter: grayscale(30%);
-}
-
-.die.selectable{
-  cursor: pointer;
-  transform: translateY(0);
-  transition: transform 120ms ease;
-}
-
-.die.selectable:hover{
-  transform: translateY(-2px);
 }
 
 .die.active{
@@ -185,6 +176,7 @@ body{
   font-size:16px;
   font-weight:700;
   letter-spacing:0.3px;
+  white-space:nowrap;
 }
 .tag.form{ background:rgba(104,211,145,0.15); color:var(--ok); border:1px solid rgba(104,211,145,0.25); }
 .tag.unpair{ background:rgba(246,173,85,0.12); color:var(--warn); border:1px solid rgba(246,173,85,0.22); }
@@ -303,6 +295,10 @@ body.shake{
   color:var(--text);
   min-height:56px;
 }
+.prompt.win{
+  color:var(--ok);
+  text-shadow:0 0 18px rgba(104,211,145,0.35);
+}
 .footer{
   margin-top:auto;
   display:flex;
@@ -342,8 +338,6 @@ body.shake{
   opacity:0.45;
   cursor:not-allowed;
 }
-.action-buttons{ display:flex; gap:10px; }
-
 @media (max-width: 1000px){
   .main{ grid-template-columns: 1fr; }
   .energybar{ max-width:none; }
