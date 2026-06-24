@@ -17,7 +17,11 @@ class GameEngine {
     this.reset();
   }
 
-  reset() {
+  reset(seed = null) {
+    if (Number.isInteger(seed)) {
+      this.rng = mulberry32(seed >>> 0);
+    }
+
     const { N, alphabetA, complement, K_init } = this.p;
     this.A = Array.from({ length: N }, () => alphabetA[Math.floor(this.rng() * alphabetA.length)]);
     this.B = this.A.map(x => complement[x]);

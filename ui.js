@@ -192,7 +192,14 @@ const params = {
   frustrationJ: 2, // doubles across 4 dice
 };
 
-const engine = new window.GameEngine(params, 12345);
+function createRandomSeed() {
+  if (window.crypto?.getRandomValues) {
+    return window.crypto.getRandomValues(new Uint32Array(1))[0];
+  }
+  return (Date.now() ^ Math.floor(Math.random() * 0x100000000)) >>> 0;
+}
+
+const engine = new window.GameEngine(params, createRandomSeed());
 
 // ---- UI state machine ----
 const UIState = {
@@ -1186,7 +1193,7 @@ function startNewGameForMode(mode = "single") {
   // Later: mode can alter params, create CPU opponent, etc.
   selectedMode = mode;
   applySettingsToParams();
-  engine.reset(params);
+  engine.reset(createRandomSeed());
 
   hardResetUIState();
 
