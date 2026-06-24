@@ -375,7 +375,7 @@ Build a perfectly aligned, fully paired duplex with the lowest possible final en
 
   <!-- Dice + Next Roll -->
   <section class="dice-row" id="diceRowWrap">
-    <div class="dice-row-left" id="diceRow"></div>
+    <div class="dice-row-left" id="diceRow" role="list" aria-label="Available move queue"></div>
     <div class="dice-row-right">
       <button id="nextRoundBtn" class="btn primary" type="button">Next Roll!</button>
     </div>
@@ -399,6 +399,25 @@ Build a perfectly aligned, fully paired duplex with the lowest possible final en
       </div>
     </section>
   </main>
+
+  <div id="winOverlay" class="win-overlay hidden" role="dialog" aria-modal="true"
+       aria-labelledby="winTitle" aria-describedby="winSummary" aria-hidden="true">
+    <div class="win-sparkles" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="win-card">
+      <div class="win-mark" aria-hidden="true">
+        <span class="win-base circle"></span>
+        <span class="win-bond"></span>
+        <span class="win-base diamond"></span>
+      </div>
+      <p class="win-kicker">Hybridization complete</p>
+      <h2 id="winTitle">Perfect Duplex!</h2>
+      <p id="winSummary" class="win-summary">Completed in 0 rounds and 0:00.</p>
+      <button id="playAgainBtn" class="btn primary win-button" type="button">Play Again</button>
+    </div>
+  </div>
 </section>
 
 <script src="engine.js"></script>

@@ -141,6 +141,9 @@ const energyValEl = document.getElementById("energyVal");
 const timerValEl = document.getElementById("timerVal");
 const energyFill = document.getElementById("energybar-fill");
 const frustrationBannerEl = document.getElementById("frustrationBanner");
+const winOverlayEl = document.getElementById("winOverlay");
+const winSummaryEl = document.getElementById("winSummary");
+const playAgainBtn = document.getElementById("playAgainBtn");
 
 
 // ---- parameters (M=4 default) ----
@@ -234,6 +237,7 @@ let navBound = false;
 let timerStartedAt = null;
 let elapsedMs = 0;
 let timerId = null;
+let winOverlayShown = false;
 
 function showFrustrationBanner() {
   
@@ -427,6 +431,51 @@ function bondPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${x1} ${c1y}, ${x2} ${c2y}, ${x2} ${y2}`;
 }
 
+function bondMidpoint(x1, y1, x2, y2) {
+  const midY = (y1 + y2) / 2;
+  const c1y = midY - 80;
+  const c2y = midY + 80;
+  return {
+    x: (x1 + x2) / 2,
+    y: (y1 + (3 * c1y) + (3 * c2y) + y2) / 8,
+  };
+}
+
+function appendUnpairIndicator(xA, yA, xB, yB) {
+  const d = bondPath(xA, yA, xB, yB);
+  const midpoint = bondMidpoint(xA, yA, xB, yB);
+
+  svg.appendChild(svgEl("path", {
+    d,
+    class: "unpair-pulse",
+    fill: "none",
+    "pointer-events": "none",
+  }));
+
+  const marker = svgEl("g", {
+    class: "unpair-marker",
+    transform: `translate(${midpoint.x} ${midpoint.y})`,
+    "pointer-events": "none",
+    "aria-hidden": "true",
+  });
+  marker.appendChild(svgEl("circle", {
+    cx: 0, cy: 0, r: 18,
+    class: "unpair-marker-bg",
+    "pointer-events": "none",
+  }));
+  marker.appendChild(svgEl("line", {
+    x1: -8, y1: -8, x2: 8, y2: 8,
+    class: "unpair-marker-line",
+    "pointer-events": "none",
+  }));
+  marker.appendChild(svgEl("line", {
+    x1: 8, y1: -8, x2: -8, y2: 8,
+    class: "unpair-marker-line",
+    "pointer-events": "none",
+  }));
+  svg.appendChild(marker);
+}
+
 function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted = false) {
   const stroke = LABELS[clsKey].color;
   const width = correct ? 4 : 3;
@@ -476,6 +525,7 @@ function drawBond(xA, yA, xB, yB, clsKey, correct, stacked, i, j, isHighlighted 
   }
 
   svg.appendChild(path);
+  if (isHighlighted) appendUnpairIndicator(xA, yA, xB, yB);
   svg.appendChild(hit);
 }
 
@@ -568,6 +618,10 @@ function updateTopBar() {
   energyFill.style.width = `${Math.round(frac * 100)}%`;
 }
 
+function shapeIconMarkup(clsKey) {
+  return `<span class="die-shape shape-${clsKey}" aria-hidden="true"></span>`;
+}
+
 function renderDice(rolls, outcomes, statusMap = {}, active = null) {
   diceRow.innerHTML = "";
 
@@ -577,8 +631,9 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
 
     const die = document.createElement("div");
     die.className = "die";
+    die.setAttribute("role", "listitem");
 
-    const status = statusMap[c] ?? "PENDING";
+    const status = statusMap[c] ?? "IDLE";
     const isPass = (status === "PASS");
     const isDone = (status === "DONE");
     const isPending = (status === "PENDING");
@@ -598,14 +653,24 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
 
     const outText = isPass ? `PASS ${out}` : out;
     const tagClass = isPass ? "pass" : (out === "FORM" ? "form" : "unpair");
+    const statusText = isPending ? "AVAILABLE" : (status === "IDLE" ? "WAITING" : status);
+    const colorName = { r: "Red", y: "Yellow", p: "Purple", b: "Blue" }[c];
+    const accessibleResult = status === "IDLE"
+      ? `${colorName}: waiting for roll`
+      : `${colorName}: rolled ${face}, ${outText}, ${statusText}`;
+    die.setAttribute("aria-label", accessibleResult);
 
     die.innerHTML = `
       <div class="row">
-        <div class="label">${c.toUpperCase()}</div>
+        <div class="die-identity">
+          ${shapeIconMarkup(c)}
+          <div class="label">${colorName}</div>
+        </div>
         <div class="face" style="color:${LABELS[c].color}">${face}</div>
       </div>
-      <div class="outcome">
+      <div class="die-result">
         <span class="tag ${tagClass}">${outText}</span>
+        <span class="die-status">${statusText}</span>
       </div>
     `;
 
@@ -763,6 +828,7 @@ function refreshDieStatus() {
 // win now helper
 function maybeWinNow() {
   if (!engine.isPerfect()) return false;
+  if (state === UIState.WON) return true;
 
   stopTimer();
   state = UIState.WON;
@@ -772,7 +838,23 @@ function maybeWinNow() {
 
   // Optional: clear highlights / render clean final state
   render();
+  showWinOverlay();
   return true;
+}
+
+function showWinOverlay() {
+  if (!winOverlayEl || winOverlayShown) return;
+  winOverlayShown = true;
+  winSummaryEl.textContent = `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`;
+  winOverlayEl.classList.remove("hidden");
+  winOverlayEl.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => playAgainBtn?.focus(), 0);
+}
+
+function hideWinOverlay() {
+  winOverlayShown = false;
+  winOverlayEl?.classList.add("hidden");
+  winOverlayEl?.setAttribute("aria-hidden", "true");
 }
 
 function clearPickState() {
@@ -1082,6 +1164,7 @@ svg.addEventListener("click", (ev) => {
 
 function hardResetUIState() {
   resetTimer();
+  hideWinOverlay();
   state = UIState.IDLE;
   roundPlan = null;
   agg = null;
@@ -1127,6 +1210,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 3) Bind Play-screen controls
     resetBtn.addEventListener("click", () => {
+      startNewGameForMode(selectedMode ?? "single");
+    });
+
+    playAgainBtn?.addEventListener("click", () => {
       startNewGameForMode(selectedMode ?? "single");
     });
 
