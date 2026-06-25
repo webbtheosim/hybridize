@@ -53,28 +53,100 @@ class GameEngine {
 
   // ----- setup -----
   randomInitialPairs(K) {
-    const maxAttempts = this.p.setupMaxAttempts ?? 20000;
-    let formed = 0;
-    let attempts = 0;
+    const trials = this.p.initialSetupTrials ?? 80;
+    const target = Math.min(K, this.p.N);
+    const baselineIndices = Array.from({ length: this.p.N }, (_value, i) => i);
 
-    while (formed < K && attempts < maxAttempts) {
-      attempts++;
-      const i = Math.floor(this.rng() * this.p.N);
-      if (this.pairedA[i] !== null) continue;
-
-      const needed = this.p.complement[this.A[i]];
-      const candidates = [];
-      for (let j = 0; j < this.p.N; j++) {
-        if (this.pairedB[j] === null && this.B[j] === needed) candidates.push(j);
-      }
-      if (!candidates.length) continue;
-
-      const j = candidates[Math.floor(this.rng() * candidates.length)];
-      if (this.wouldCross(i, j)) continue;
-
-      this.formPair(i, j);
-      formed++;
+    for (let i = baselineIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [baselineIndices[i], baselineIndices[j]] = [baselineIndices[j], baselineIndices[i]];
     }
+
+    this.pairedA.fill(null);
+    this.pairedB.fill(null);
+    for (const i of baselineIndices.slice(0, target)) {
+      this.formPair(i, i);
+    }
+
+    let best = {
+      pairedA: [...this.pairedA],
+      pairedB: [...this.pairedB],
+      formed: target,
+      mispairs: 0,
+      displacement: 0,
+    };
+
+    for (let trial = 0; trial < trials; trial++) {
+      this.pairedA.fill(null);
+      this.pairedB.fill(null);
+
+      // A setup tends left or right, with the direction randomized per trial.
+      // Keeping one direction within a trial makes noncrossing offsets easier
+      // to build while allowing either orientation across new games.
+      const preferredDirection = this.rng() < 0.5 ? -1 : 1;
+      let formed = 0;
+
+      while (formed < target) {
+        const candidates = [];
+        for (let i = 0; i < this.p.N; i++) {
+          if (this.pairedA[i] !== null) continue;
+
+          for (let j = 0; j < this.p.N; j++) {
+            if (this.pairedB[j] !== null) continue;
+            if (!this.isComplement(i, j)) continue;
+            if (this.wouldCross(i, j)) continue;
+            candidates.push([i, j]);
+          }
+        }
+
+        if (!candidates.length) break;
+
+        const misaligned = candidates.filter(([i, j]) => i !== j);
+        const directed = misaligned.filter(([i, j]) =>
+          Math.sign(j - i) === preferredDirection
+        );
+        const pool = directed.length ? directed : (misaligned.length ? misaligned : candidates);
+        const [i, j] = pool[Math.floor(this.rng() * pool.length)];
+
+        this.formPair(i, j);
+        formed++;
+      }
+
+      let mispairs = 0;
+      let displacement = 0;
+      for (let i = 0; i < this.p.N; i++) {
+        const j = this.pairedA[i];
+        if (j === null || i === j) continue;
+        mispairs++;
+        displacement += Math.abs(j - i);
+      }
+
+      const candidate = {
+        pairedA: [...this.pairedA],
+        pairedB: [...this.pairedB],
+        formed,
+        mispairs,
+        displacement,
+      };
+
+      const isBetter = !best
+        || candidate.formed > best.formed
+        || (candidate.formed === best.formed && candidate.mispairs > best.mispairs)
+        || (candidate.formed === best.formed
+          && candidate.mispairs === best.mispairs
+          && candidate.displacement > best.displacement);
+      const isTied = best
+        && candidate.formed === best.formed
+        && candidate.mispairs === best.mispairs
+        && candidate.displacement === best.displacement;
+
+      if (isBetter || (isTied && this.rng() < 0.5)) {
+        best = candidate;
+      }
+    }
+
+    this.pairedA = best?.pairedA ?? Array.from({ length: this.p.N }, () => null);
+    this.pairedB = best?.pairedB ?? Array.from({ length: this.p.N }, () => null);
   }
 
   // ----- move generation -----

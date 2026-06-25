@@ -183,7 +183,7 @@ const params = {
   complement,
   crossingAllowed: false,
   K_init: Math.floor(12 / 3),
-  setupMaxAttempts: 20000,
+  initialSetupTrials: 80,
 
   diceSides: 6,
   formFaces,
