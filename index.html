@@ -53,7 +53,7 @@
           <span class="settings-note">Modify&nbsp;difficulty</span>
         </div>
 
-        <div class="settings-grid">
+        <div class="settings-grid" id="oddsSettingsGrid">
           <label class="setting-row color-r" for="ratio-r">
             <span>Red</span>
             <span class="ratio-control">
@@ -109,6 +109,16 @@
               </select>
             </span>
           </label>
+        </div>
+
+        <div class="mystery-controls">
+          <label class="toggle-row" for="mysteryOddsToggle">
+            <input id="mysteryOddsToggle" type="checkbox" aria-describedby="mysteryOddsNote" />
+            <span>Mystery Odds</span>
+          </label>
+          <p id="mysteryOddsNote">
+            Hidden <strong>FORM:UNPAIR</strong> odds will be selected independently for each color when a new game begins.
+          </p>
         </div>
 
         <div class="frustration-controls">
@@ -415,6 +425,33 @@ Build a perfectly aligned, fully paired duplex with the lowest possible final en
       <p class="win-kicker">Hybridization complete</p>
       <h2 id="winTitle">Perfect Duplex!</h2>
       <p id="winSummary" class="win-summary">Completed in 0 rounds and 0:00.</p>
+      <section class="win-stats" aria-labelledby="statsTitle">
+        <h3 id="statsTitle">Game Summary</h3>
+        <div id="winStatsGlobal" class="stats-global"></div>
+        <div id="winInterpretation" class="stats-interpretation"></div>
+        <div class="stats-table-wrap">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">Color</th>
+                <th scope="col">Odds</th>
+                <th scope="col">Rolls</th>
+                <th scope="col">FORM rolls</th>
+                <th scope="col">UNPAIR rolls</th>
+                <th scope="col">FORM moves</th>
+                <th scope="col">UNPAIR moves</th>
+                <th scope="col">Correct formed</th>
+                <th scope="col">Correct unpaired</th>
+                <th scope="col">Mistakes made</th>
+                <th scope="col">Mistakes fixed</th>
+                <th scope="col">Passes</th>
+              </tr>
+            </thead>
+            <tbody id="winStatsBody"></tbody>
+          </table>
+        </div>
+        <p id="mysteryRevealNote" class="mystery-reveal hidden"></p>
+      </section>
       <button id="playAgainBtn" class="btn primary win-button" type="button">Play Again</button>
     </div>
   </div>

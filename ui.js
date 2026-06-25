@@ -69,19 +69,36 @@ function probabilityRatioToFormFaces(ratio) {
   return new Set(Array.from({ length: safeCount }, (_v, i) => i + 1));
 }
 
-function buildFormFacesFromSettings() {
-  const next = {};
+function getRatiosFromSettings() {
+  const ratios = {};
   for (const c of COLORS) {
     const select = document.querySelector(`[data-color="${c}"]`);
-    const ratio = RATIO_OPTIONS.includes(select?.value) ? select.value : DEFAULT_RATIOS[c];
-    next[c] = probabilityRatioToFormFaces(ratio);
+    ratios[c] = RATIO_OPTIONS.includes(select?.value) ? select.value : DEFAULT_RATIOS[c];
   }
-  return next;
+  return ratios;
+}
+
+function randomizeMysteryOdds() {
+  const ratios = {};
+  for (const c of COLORS) {
+    ratios[c] = RATIO_OPTIONS[createRandomSeed() % RATIO_OPTIONS.length];
+  }
+  return ratios;
+}
+
+function applyRatiosToParams(ratios) {
+  formFaces = {};
+  for (const c of COLORS) {
+    formFaces[c] = probabilityRatioToFormFaces(ratios[c]);
+  }
+  params.formFaces = formFaces;
 }
 
 function applySettingsToParams() {
-  formFaces = buildFormFacesFromSettings();
-  params.formFaces = formFaces;
+  if (!mysteryModeActive) {
+    activeRatios = getRatiosFromSettings();
+    applyRatiosToParams(activeRatios);
+  }
 
   const frustrationToggle = document.getElementById("frustrationToggle");
   const frustrationThreshold = document.getElementById("frustrationThreshold");
@@ -91,6 +108,25 @@ function applySettingsToParams() {
   params.frustrationJ = Number.isInteger(threshold) && threshold >= 2 && threshold <= COLORS.length
     ? threshold
     : 2;
+}
+
+function configureNewGameSettings() {
+  const mysteryToggle = document.getElementById("mysteryOddsToggle");
+  mysteryModeActive = mysteryToggle?.checked ?? false;
+  activeRatios = mysteryModeActive ? randomizeMysteryOdds() : getRatiosFromSettings();
+  applyRatiosToParams(activeRatios);
+  applySettingsToParams();
+}
+
+function updateMysterySettingsUI() {
+  const toggle = document.getElementById("mysteryOddsToggle");
+  const settingsGrid = document.getElementById("oddsSettingsGrid");
+  const enabled = toggle?.checked ?? false;
+
+  settingsGrid?.classList.toggle("mystery-active", enabled);
+  document.querySelectorAll("[data-color]").forEach(select => {
+    select.disabled = enabled;
+  });
 }
 
 function formatElapsed(ms) {
@@ -144,6 +180,10 @@ const frustrationBannerEl = document.getElementById("frustrationBanner");
 const winOverlayEl = document.getElementById("winOverlay");
 const winSummaryEl = document.getElementById("winSummary");
 const playAgainBtn = document.getElementById("playAgainBtn");
+const winStatsGlobalEl = document.getElementById("winStatsGlobal");
+const winStatsBodyEl = document.getElementById("winStatsBody");
+const winInterpretationEl = document.getElementById("winInterpretation");
+const mysteryRevealNoteEl = document.getElementById("mysteryRevealNote");
 
 
 // ---- parameters (M=4 default) ----
@@ -245,6 +285,173 @@ let timerStartedAt = null;
 let elapsedMs = 0;
 let timerId = null;
 let winOverlayShown = false;
+let mysteryModeActive = false;
+let activeRatios = { ...DEFAULT_RATIOS };
+let gameStats = null;
+let passRecordedThisRound = new Set();
+
+function emptyColorStats() {
+  return {
+    rolls: 0,
+    formRolls: 0,
+    unpairRolls: 0,
+    formMoves: 0,
+    unpairMoves: 0,
+    passes: 0,
+    correctFormed: 0,
+    mispairedFormed: 0,
+    correctUnpaired: 0,
+    mispairedUnpaired: 0,
+  };
+}
+
+function resetGameStats() {
+  gameStats = {
+    rounds: 0,
+    formMoves: 0,
+    unpairMoves: 0,
+    passes: 0,
+    frustrationEvents: 0,
+    correctFormed: 0,
+    mispairedFormed: 0,
+    correctUnpaired: 0,
+    mispairedUnpaired: 0,
+    lastCompletedColor: null,
+    perColor: Object.fromEntries(COLORS.map(c => [c, emptyColorStats()])),
+  };
+  passRecordedThisRound = new Set();
+}
+
+function recordRolls(outcomes) {
+  gameStats.rounds++;
+  for (const c of COLORS) {
+    const stats = gameStats.perColor[c];
+    stats.rolls++;
+    if (outcomes[c] === "FORM") stats.formRolls++;
+    else stats.unpairRolls++;
+  }
+}
+
+function finalizeRoundPasses() {
+  if (!gameStats) return;
+  for (const c of COLORS) {
+    if (dieStatus[c] !== "PASS" || passRecordedThisRound.has(c)) continue;
+    passRecordedThisRound.add(c);
+    gameStats.passes++;
+    gameStats.perColor[c].passes++;
+  }
+}
+
+function recordFormMove(color, i, j) {
+  const stats = gameStats.perColor[color];
+  const isCorrect = i === j;
+  gameStats.formMoves++;
+  stats.formMoves++;
+  gameStats.lastCompletedColor = color;
+
+  if (isCorrect) {
+    gameStats.correctFormed++;
+    stats.correctFormed++;
+  } else {
+    gameStats.mispairedFormed++;
+    stats.mispairedFormed++;
+  }
+}
+
+function recordUnpairMove(color, i, j) {
+  const stats = gameStats.perColor[color];
+  const isCorrect = i === j;
+  gameStats.unpairMoves++;
+  stats.unpairMoves++;
+  gameStats.lastCompletedColor = color;
+
+  if (isCorrect) {
+    gameStats.correctUnpaired++;
+    stats.correctUnpaired++;
+  } else {
+    gameStats.mispairedUnpaired++;
+    stats.mispairedUnpaired++;
+  }
+}
+
+function colorName(color) {
+  return { r: "Red", y: "Yellow", p: "Purple", b: "Blue" }[color];
+}
+
+function uniqueLeader(field) {
+  const values = COLORS.map(c => [c, gameStats.perColor[c][field]]);
+  const max = Math.max(...values.map(([_c, value]) => value));
+  const leaders = values.filter(([_c, value]) => value === max);
+  return max > 0 && leaders.length === 1 ? leaders[0][0] : null;
+}
+
+function statsInterpretation() {
+  const insights = [];
+  const errorColor = uniqueLeader("mispairedFormed");
+  const correctionColor = uniqueLeader("mispairedUnpaired");
+  const passColor = uniqueLeader("passes");
+
+  if (errorColor) insights.push(`Most error-prone color: ${colorName(errorColor)}.`);
+  if (correctionColor) insights.push(`Most helpful for correction: ${colorName(correctionColor)}.`);
+  if (!correctionColor && gameStats.mispairedUnpaired > 0) {
+    insights.push("Several colors contributed similarly to error correction.");
+  }
+  if (insights.length < 2 && passColor) insights.push(`Most passes: ${colorName(passColor)}.`);
+  if (insights.length < 2 && gameStats.lastCompletedColor) {
+    insights.push(`Last completed color: ${colorName(gameStats.lastCompletedColor)}.`);
+  }
+  if (!insights.length) insights.push("No single color dominated the assembly.");
+  return insights.slice(0, 2);
+}
+
+function renderStatsSummary() {
+  if (!gameStats || !winStatsGlobalEl || !winStatsBodyEl) return;
+
+  const globalStats = [
+    [gameStats.rounds, "Rounds"],
+    [formatElapsed(elapsedMs), "Time"],
+    [gameStats.formMoves, "FORM moves"],
+    [gameStats.unpairMoves, "UNPAIR moves"],
+    [gameStats.passes, "Passes"],
+    [gameStats.frustrationEvents, "Frustrations"],
+    [gameStats.correctFormed, "Correct formed"],
+    [gameStats.correctUnpaired, "Correct unpaired"],
+    [gameStats.mispairedFormed, "Mistakes made"],
+    [gameStats.mispairedUnpaired, "Mistakes fixed"],
+  ];
+  winStatsGlobalEl.innerHTML = globalStats
+    .map(([value, label]) => `<div class="stat-summary"><strong>${value}</strong><span>${label}</span></div>`)
+    .join("");
+
+  winInterpretationEl.innerHTML = statsInterpretation()
+    .map(text => `<p class="stats-insight">${text}</p>`)
+    .join("");
+
+  winStatsBodyEl.innerHTML = COLORS.map(c => {
+    const stats = gameStats.perColor[c];
+    return `
+      <tr>
+        <td class="stats-color stats-color-${c}">${colorName(c)}</td>
+        <td>${activeRatios[c]}</td>
+        <td>${stats.rolls}</td>
+        <td>${stats.formRolls}</td>
+        <td>${stats.unpairRolls}</td>
+        <td>${stats.formMoves}</td>
+        <td>${stats.unpairMoves}</td>
+        <td>${stats.correctFormed}</td>
+        <td>${stats.correctUnpaired}</td>
+        <td>${stats.mispairedFormed}</td>
+        <td>${stats.mispairedUnpaired}</td>
+        <td>${stats.passes}</td>
+      </tr>
+    `;
+  }).join("");
+
+  mysteryRevealNoteEl?.classList.toggle("hidden", !mysteryModeActive);
+  if (mysteryModeActive && mysteryRevealNoteEl) {
+    mysteryRevealNoteEl.textContent = "Mystery revealed: true FORM:UNPAIR odds are shown beside the observed roll counts.";
+  }
+}
 
 function showFrustrationBanner() {
   
@@ -736,6 +943,8 @@ function beginRound() {
   clearFrustrationSelection();
 
   roundPlan = engine.startNextRound();
+  passRecordedThisRound = new Set();
+  recordRolls(roundPlan.outcomes);
 
   // Initialize die status for this round
   dieStatus = {};
@@ -811,6 +1020,8 @@ function chooseOnBoard(animateDice = false) {
   const pending = COLORS.filter(c => dieStatus[c] === "PENDING");
 
   if (pending.length === 0) {
+    finalizeRoundPasses();
+
     // End-of-round logic
     if (frustrationPending) {
       frustrationMoves = engine.legalMisalignmentMoves();
@@ -819,6 +1030,7 @@ function chooseOnBoard(animateDice = false) {
         clearFrustrationSelection();
 
         if (!frustrationBannerShown) {
+          gameStats.frustrationEvents++;
           showFrustrationBanner();
           frustrationBannerShown = true;
         }
@@ -868,6 +1080,7 @@ function maybeWinNow() {
   if (!engine.isPerfect()) return false;
   if (state === UIState.WON) return true;
 
+  finalizeRoundPasses();
   stopTimer();
   state = UIState.WON;
   promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds and ${formatElapsed(elapsedMs)}!`;
@@ -884,6 +1097,7 @@ function showWinOverlay() {
   if (!winOverlayEl || winOverlayShown) return;
   winOverlayShown = true;
   winSummaryEl.textContent = `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`;
+  renderStatsSummary();
   winOverlayEl.classList.remove("hidden");
   winOverlayEl.setAttribute("aria-hidden", "false");
   window.setTimeout(() => playAgainBtn?.focus(), 0);
@@ -1075,6 +1289,7 @@ svg.addEventListener("click", (ev) => {
 
       // Apply immediately
       engine.unpair(i, j);
+      recordUnpairMove(activeClass, i, j);
 
       // Mark this die resolved for the round
       if (dieStatus[activeClass] === "PENDING") dieStatus[activeClass] = "DONE";
@@ -1117,6 +1332,7 @@ svg.addEventListener("click", (ev) => {
     }
 
     engine.formPair(i, j);
+    recordFormMove(activeClass, i, j);
 
     if (dieStatus[activeClass] === "PENDING") dieStatus[activeClass] = "DONE";
     refreshDieStatus();
@@ -1141,6 +1357,7 @@ svg.addEventListener("click", (ev) => {
     if (!ok) return;
 
     engine.unpair(i, j);
+    recordUnpairMove(activeClass, i, j);
     if (dieStatus[activeClass] === "PENDING") dieStatus[activeClass] = "DONE";
     refreshDieStatus();
 
@@ -1177,7 +1394,9 @@ svg.addEventListener("click", (ev) => {
       const j = Number(target.getAttribute("data-idx"));
       if (!tempCandidatesB.includes(j)) return;
 
+      const frustrationColor = engine.A[pickedA].toLowerCase();
       engine.formPair(pickedA, j);
+      recordFormMove(frustrationColor, pickedA, j);
 
       frustrationPending = false;
       frustrationMoves = null;
@@ -1203,6 +1422,7 @@ svg.addEventListener("click", (ev) => {
 function hardResetUIState() {
   resetTimer();
   hideWinOverlay();
+  resetGameStats();
   state = UIState.IDLE;
   roundPlan = null;
   agg = null;
@@ -1223,7 +1443,7 @@ function startNewGameForMode(mode = "single") {
   // For now, modes share the same core game.
   // Later: mode can alter params, create CPU opponent, etc.
   selectedMode = mode;
-  applySettingsToParams();
+  configureNewGameSettings();
   engine.reset(createRandomSeed());
 
   hardResetUIState();
@@ -1247,6 +1467,10 @@ document.addEventListener("DOMContentLoaded", () => {
     startNewGameForMode("single");
 
     // 3) Bind Play-screen controls
+    const mysteryToggle = document.getElementById("mysteryOddsToggle");
+    mysteryToggle?.addEventListener("change", updateMysterySettingsUI);
+    updateMysterySettingsUI();
+
     resetBtn.addEventListener("click", () => {
       startNewGameForMode(selectedMode ?? "single");
     });
