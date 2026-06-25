@@ -396,9 +396,40 @@ select{
   border-radius:5px;
 }
 .die .face{
-  font-size:26px;
-  font-weight:800;
+  color:var(--die-color);
+}
+.face-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+.die-face-icon{
+  display:block;
+  width:38px;
+  height:38px;
+  overflow:visible;
+  pointer-events:none;
+  filter:drop-shadow(0 0 5px var(--die-color));
+}
+.die-face-icon rect{
+  fill:rgba(6,10,16,0.72);
+  stroke:var(--die-color);
+  stroke-width:2.2;
+}
+.die-pips{
+  fill:var(--die-color);
+}
+.face-num{
+  min-width:1ch;
+  color:var(--die-color);
+  font-size:24px;
+  font-weight:900;
   letter-spacing:0;
+  line-height:1;
+  text-align:center;
 }
 .die .label{
   font-size:17px;
@@ -452,6 +483,31 @@ select{
 .die.active{
   box-shadow:0 0 0 3px rgba(255,255,255,0.28), 0 0 30px rgba(246,173,85,0.48);
   border-color:rgba(246,173,85,0.75);
+}
+.die.rolling{
+  animation:dieRoll 480ms cubic-bezier(0.22, 0.8, 0.32, 1) var(--roll-delay, 0ms) backwards;
+}
+.die.rolling .die-face-icon{
+  animation:dieFaceRoll 480ms ease-out var(--roll-delay, 0ms) backwards;
+}
+.die.rolling .die-result{
+  animation:dieOutcomeReveal 480ms ease-out var(--roll-delay, 0ms) backwards;
+}
+@keyframes dieRoll{
+  0%{ opacity:0.38; transform:translateY(-5px) rotate(-2deg) scale(0.96); }
+  28%{ transform:translateY(4px) rotate(2deg) scale(1.02); }
+  56%{ opacity:0.78; transform:translateY(-2px) rotate(-1deg) scale(0.99); }
+  78%{ transform:translateY(1px) rotate(0.5deg) scale(1.01); }
+  100%{ opacity:1; transform:translateY(0) rotate(0) scale(1); }
+}
+@keyframes dieFaceRoll{
+  0%{ opacity:0.2; transform:rotate(-100deg) scale(0.72); }
+  55%{ opacity:0.86; transform:rotate(18deg) scale(1.08); }
+  100%{ opacity:1; transform:rotate(0) scale(1); }
+}
+@keyframes dieOutcomeReveal{
+  0%, 62%{ opacity:0; transform:translateY(3px); }
+  100%{ opacity:0.95; transform:translateY(0); }
 }
 
 .tag{
@@ -916,6 +972,13 @@ body.shake{
     height:18px;
     flex-basis:18px;
   }
+  .die-face-icon{
+    width:32px;
+    height:32px;
+  }
+  .face-num{
+    font-size:20px;
+  }
   .die-result{
     align-items:flex-start;
     flex-direction:column;
@@ -932,6 +995,11 @@ body.shake{
   }
   .die{
     transition:none;
+  }
+  .die.rolling,
+  .die.rolling .die-face-icon,
+  .die.rolling .die-result{
+    animation:none;
   }
 }
 

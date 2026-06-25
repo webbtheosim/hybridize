@@ -629,16 +629,44 @@ function shapeIconMarkup(clsKey) {
   return `<span class="die-shape shape-${clsKey}" aria-hidden="true"></span>`;
 }
 
-function renderDice(rolls, outcomes, statusMap = {}, active = null) {
+function dieFaceSVG(face) {
+  const pipPositions = {
+    1: [[21, 21]],
+    2: [[12, 12], [30, 30]],
+    3: [[12, 12], [21, 21], [30, 30]],
+    4: [[12, 12], [30, 12], [12, 30], [30, 30]],
+    5: [[12, 12], [30, 12], [21, 21], [12, 30], [30, 30]],
+    6: [[12, 11], [30, 11], [12, 21], [30, 21], [12, 31], [30, 31]],
+  };
+  const numericFace = Number(face);
+  const pips = pipPositions[numericFace] ?? [];
+  const circles = pips
+    .map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="3.2"></circle>`)
+    .join("");
+
+  return `
+    <svg class="die-face-icon" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
+      <rect x="2" y="2" width="38" height="38" rx="8"></rect>
+      <g class="die-pips">${circles}</g>
+    </svg>
+  `;
+}
+
+function renderDice(rolls, outcomes, statusMap = {}, active = null, animateRoll = false) {
   diceRow.innerHTML = "";
 
-  for (const c of COLORS) {
+  COLORS.forEach((c, index) => {
     const face = rolls?.[c] ?? "-";
     const out = outcomes?.[c] ?? "-";
 
     const die = document.createElement("div");
     die.className = "die";
     die.setAttribute("role", "listitem");
+    die.style.setProperty("--die-color", LABELS[c].color);
+    if (animateRoll) {
+      die.classList.add("rolling");
+      die.style.setProperty("--roll-delay", `${index * 45}ms`);
+    }
 
     const status = statusMap[c] ?? "IDLE";
     const isPass = (status === "PASS");
@@ -673,7 +701,10 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
           ${shapeIconMarkup(c)}
           <div class="label">${colorName}</div>
         </div>
-        <div class="face" style="color:${LABELS[c].color}">${face}</div>
+        <div class="face face-wrap">
+          ${dieFaceSVG(face)}
+          <span class="face-num">${face}</span>
+        </div>
       </div>
       <div class="die-result">
         <span class="tag ${tagClass}">${outText}</span>
@@ -691,7 +722,7 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null) {
     }
 
     diceRow.appendChild(die);
-  }
+  });
 }
 
 // ----- round progression -----
@@ -721,7 +752,7 @@ function beginRound() {
   frustrationMoves = null;
   frustrationBannerShown = false;
   nextRoundBtn.disabled = true;
-  chooseOnBoard();
+  chooseOnBoard(true);
 }
 
 
@@ -771,11 +802,12 @@ function buildAggregated() {
 }
 
 // pick next action
-function chooseOnBoard() {
+function chooseOnBoard(animateDice = false) {
   if (maybeWinNow()) return;
   if (state === UIState.FRUSTRATION) return;
 
   refreshDieStatus();
+  renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus, null, animateDice);
   const pending = COLORS.filter(c => dieStatus[c] === "PENDING");
 
   if (pending.length === 0) {
@@ -815,7 +847,6 @@ function chooseOnBoard() {
   state = UIState.CHOOSE_ON_BOARD;
   promptEl.textContent = "Make any glowing move on the strands (in any order).";
   render(agg.highlight);
-  renderDice(roundPlan.rolls, roundPlan.outcomes, dieStatus);
 }
 
 // Refresh helper
