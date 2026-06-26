@@ -148,7 +148,7 @@ function resetTimer() {
 }
 
 function startTimerIfNeeded() {
-  if (timerId || state === UIState.WON) return;
+  if (timerId || isFinishedState()) return;
   timerStartedAt = Date.now() - elapsedMs;
   timerId = window.setInterval(() => {
     elapsedMs = Date.now() - timerStartedAt;
@@ -172,12 +172,15 @@ const diceRow = document.getElementById("diceRow");
 const promptEl = document.getElementById("prompt");
 const nextRoundBtn = document.getElementById("nextRoundBtn");
 const resetBtn = document.getElementById("resetBtn");
+const endGameBtn = document.getElementById("endGameBtn");
 const roundNumEl = document.getElementById("roundNum");
 const energyValEl = document.getElementById("energyVal");
 const timerValEl = document.getElementById("timerVal");
 const energyFill = document.getElementById("energybar-fill");
 const frustrationBannerEl = document.getElementById("frustrationBanner");
 const winOverlayEl = document.getElementById("winOverlay");
+const winKickerEl = document.getElementById("winKicker");
+const winTitleEl = document.getElementById("winTitle");
 const winSummaryEl = document.getElementById("winSummary");
 const playAgainBtn = document.getElementById("playAgainBtn");
 const winStatsGlobalEl = document.getElementById("winStatsGlobal");
@@ -249,6 +252,7 @@ const UIState = {
   FORM_PICK_SECOND: "FORM_PICK_SECOND",
   UNPAIR_PICK: "UNPAIR_PICK",
   FRUSTRATION: "FRUSTRATION",
+  ENDED: "ENDED",
   WON: "WON",
 };
 
@@ -289,6 +293,10 @@ let mysteryModeActive = false;
 let activeRatios = { ...DEFAULT_RATIOS };
 let gameStats = null;
 let passRecordedThisRound = new Set();
+
+function isFinishedState() {
+  return state === UIState.WON || state === UIState.ENDED;
+}
 
 function emptyColorStats() {
   return {
@@ -934,7 +942,7 @@ function renderDice(rolls, outcomes, statusMap = {}, active = null, animateRoll 
 
 // ----- round progression -----
 function beginRound() {
-  if (state === UIState.WON) return;
+  if (isFinishedState()) return;
 
   applySettingsToParams();
   startTimerIfNeeded();
@@ -1085,18 +1093,32 @@ function maybeWinNow() {
   state = UIState.WON;
   promptEl.textContent = `🎉 Perfect duplex achieved in ${engine.round} rounds and ${formatElapsed(elapsedMs)}!`;
   nextRoundBtn.disabled = true;
+  if (endGameBtn) endGameBtn.disabled = true;
   promptEl.classList.add("win");
 
   // Optional: clear highlights / render clean final state
   render();
-  showWinOverlay();
+  showWinOverlay({
+    kind: "win",
+    kicker: "Hybridization complete",
+    title: "Perfect Duplex!",
+    summary: `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`,
+  });
   return true;
 }
 
-function showWinOverlay() {
+function showWinOverlay({
+  kind = "win",
+  kicker = "Hybridization complete",
+  title = "Perfect Duplex!",
+  summary = `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`,
+} = {}) {
   if (!winOverlayEl || winOverlayShown) return;
   winOverlayShown = true;
-  winSummaryEl.textContent = `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`;
+  winOverlayEl.classList.toggle("review", kind === "review");
+  if (winKickerEl) winKickerEl.textContent = kicker;
+  if (winTitleEl) winTitleEl.textContent = title;
+  if (winSummaryEl) winSummaryEl.textContent = summary;
   renderStatsSummary();
   winOverlayEl.classList.remove("hidden");
   winOverlayEl.setAttribute("aria-hidden", "false");
@@ -1105,8 +1127,41 @@ function showWinOverlay() {
 
 function hideWinOverlay() {
   winOverlayShown = false;
+  winOverlayEl?.classList.remove("review");
   winOverlayEl?.classList.add("hidden");
   winOverlayEl?.setAttribute("aria-hidden", "true");
+}
+
+function endGameForReview() {
+  if (isFinishedState()) return;
+
+  if (roundPlan) {
+    finalizeRoundPasses();
+  }
+  stopTimer();
+  state = UIState.ENDED;
+
+  clearPickState();
+  clearFrustrationSelection();
+  frustrationPending = false;
+  frustrationMoves = null;
+  frustrationBannerShown = false;
+  frustrationBannerEl?.classList.add("hidden");
+
+  promptEl.classList.remove("win");
+  promptEl.textContent = "Game ended early. Review your statistics and Mystery Odds, then start a new game when ready.";
+  nextRoundBtn.disabled = true;
+  if (endGameBtn) endGameBtn.disabled = true;
+
+  render();
+  showWinOverlay({
+    kind: "review",
+    kicker: engine.isPerfect() ? "Hybridization complete" : "Game review",
+    title: engine.isPerfect() ? "Perfect Duplex!" : "Game Ended",
+    summary: engine.isPerfect()
+      ? `Completed in ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}.`
+      : `Stopped after ${engine.round} ${engine.round === 1 ? "round" : "rounds"} and ${formatElapsed(elapsedMs)}. Final energy: ${engine.energy()}.`,
+  });
 }
 
 function clearPickState() {
@@ -1455,6 +1510,7 @@ function startNewGameForMode(mode = "single") {
   promptEl.classList.remove("win");
   promptEl.textContent = "Press “Next Roll!” to roll dice.";
   nextRoundBtn.disabled = false;
+  if (endGameBtn) endGameBtn.disabled = false;
 }
 
 
@@ -1474,6 +1530,8 @@ document.addEventListener("DOMContentLoaded", () => {
     resetBtn.addEventListener("click", () => {
       startNewGameForMode(selectedMode ?? "single");
     });
+
+    endGameBtn?.addEventListener("click", endGameForReview);
 
     playAgainBtn?.addEventListener("click", () => {
       startNewGameForMode(selectedMode ?? "single");

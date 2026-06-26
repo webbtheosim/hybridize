@@ -32,6 +32,13 @@ body{
   border-bottom:1px solid rgba(255,255,255,0.06);
   gap:16px;
 }
+.topbar-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
 
 .nav{
   display:flex;
@@ -796,6 +803,24 @@ body.shake{
   box-shadow:0 0 0 6px rgba(104,211,145,0.08), 0 0 54px rgba(104,211,145,0.32);
   animation:winArrival 360ms ease-out both;
 }
+.win-overlay.review .win-card{
+  border-color:rgba(246,173,85,0.66);
+  box-shadow:0 0 0 6px rgba(246,173,85,0.08), 0 0 48px rgba(246,173,85,0.25);
+}
+.win-overlay.review .win-sparkles{
+  display:none;
+}
+.win-overlay.review .win-kicker{
+  color:var(--warn);
+}
+.win-overlay.review .win-base{
+  border-color:var(--warn);
+  box-shadow:0 0 14px rgba(246,173,85,0.48);
+}
+.win-overlay.review .win-bond{
+  background:var(--warn);
+  box-shadow:0 0 14px rgba(246,173,85,0.62);
+}
 .win-mark{
   display:flex;
   align-items:center;
@@ -1017,6 +1042,11 @@ body.shake{
 .btn.primary{
   background:rgba(102,163,255,0.18);
   border-color:rgba(102,163,255,0.32);
+}
+.btn.subtle{
+  color:#ffdca0;
+  background:rgba(246,173,85,0.08);
+  border-color:rgba(246,173,85,0.24);
 }
 .btn:disabled{
   opacity:0.45;
